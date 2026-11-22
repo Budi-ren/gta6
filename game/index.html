@@ -3,16 +3,98 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<link rel="icon" href="favicon.ico">
+<title>Sunburst City: Vice Horizon</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #050508; font-family: system-ui, -apple-system, sans-serif; color: #fff; user-select: none; }
   #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
+  #hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; }
+  .hud-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .hud-group { background: rgba(0,0,0,0.6); padding: 10px 16px; border-radius: 8px; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); pointer-events: auto; }
+  .bar-container { width: 150px; height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; overflow: hidden; margin-top: 4px; }
+  .bar-fill { height: 100%; background: #ff3344; width: 100%; transition: width 0.2s; }
+  .bar-fill.armor { background: #3388ff; }
+  .money { font-size: 24px; font-weight: bold; color: #55ff55; text-shadow: 0 0 10px rgba(85,255,85,0.5); }
+  .wanted { color: #ffcc00; font-size: 20px; letter-spacing: 2px; }
+  .mission-box { background: rgba(0,0,0,0.7); border-left: 4px solid #ff7700; padding: 12px 18px; border-radius: 0 8px 8px 0; max-width: 350px; pointer-events: auto; }
+  .mission-title { font-weight: bold; color: #ff9933; margin-bottom: 4px; font-size: 16px; }
+  .mission-desc { font-size: 14px; color: #ddd; }
+  #minimap-container { width: 160px; height: 160px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255,255,255,0.3); background: rgba(20,25,35,0.8); position: relative; pointer-events: auto; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+  #minimap { width: 100%; height: 100%; display: block; }
+  
+  /* Menus and Screens */
+  .screen-overlay { position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(15,10,30,0.92) 0%, rgba(5,2,10,0.96) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; pointer-events: auto; text-align: center; padding: 20px; }
+  .screen-overlay.hidden { display: none !important; }
+  h1 { font-size: 56px; margin: 0 0 10px 0; background: linear-gradient(45deg, #ff3366, #ff9933, #ffff33); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 10px 30px rgba(255,51,102,0.4); }
+  h2 { font-size: 24px; color: #aaa; margin: 0 0 30px 0; font-weight: normal; }
+  .btn { background: linear-gradient(135deg, #ff3366, #ff6633); color: white; border: none; padding: 14px 36px; font-size: 20px; font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 6px 20px rgba(255,51,102,0.4); transition: transform 0.1s, box-shadow 0.1s; margin: 10px; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255,51,102,0.6); }
+  .btn:active { transform: translateY(1px); }
+  .controls-hint { margin-top: 30px; background: rgba(255,255,255,0.05); padding: 15px 25px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); font-size: 14px; color: #ccc; max-width: 500px; line-height: 1.6; }
+  
   #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 </style>
+<script src="./vendor/three.min.js"></script>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div class="hud-top">
+    <div class="hud-group">
+      <div class="money" id="hud-money">$500</div>
+      <div style="margin-top:8px;">HEALTH</div>
+      <div class="bar-container"><div class="bar-fill" id="hud-health"></div></div>
+      <div style="margin-top:6px;">WANTED</div>
+      <div class="wanted" id="hud-wanted">☆☆☆☆☆</div>
+    </div>
+    <div class="mission-box" id="hud-mission">
+      <div class="mission-title" id="hud-mission-title">MISSION: SUNBURST INTRO</div>
+      <div class="mission-desc" id="hud-mission-desc">Explore the sun-soaked city, steal a car, and head to the downtown club.</div>
+    </div>
+    <div id="minimap-container">
+      <canvas id="minimap" width="160" height="160"></canvas>
+    </div>
+  </div>
+  <div style="display:flex; justify-content: space-between; align-items: flex-end;">
+    <div class="hud-group" id="hud-weapon" style="font-size: 16px; font-weight: bold;">WEAPON: PUNCH / PISTOL</div>
+    <div class="hud-group" id="hud-speedometer" style="font-size: 18px; font-weight: bold; display:none;">SPEED: 0 MPH</div>
+  </div>
+</div>
+
+<!-- Title Screen -->
+<div id="screen-title" class="screen-overlay">
+  <h1>SUNBURST CITY</h1>
+  <h2>VICE HORIZON</h2>
+  <button class="btn" id="btn-start">PLAY GAME</button>
+  <div class="controls-hint">
+    <strong>CONTROLS:</strong><br>
+    <strong>WASD / Arrows:</strong> Move / Drive | <strong>Shift:</strong> Sprint<br>
+    <strong>Space:</strong> Jump / Shoot | <strong>E / F:</strong> Enter / Exit Vehicle<br>
+    <strong>Click / Drag:</strong> Look Around | <strong>P:</strong> Pause | <strong>M:</strong> Map
+  </div>
+</div>
+
+<!-- Pause Screen -->
+<div id="screen-paused" class="screen-overlay hidden">
+  <h1>GAME PAUSED</h1>
+  <button class="btn" id="btn-resume">RESUME</button>
+  <button class="btn" id="btn-restart" style="background: linear-gradient(135deg, #444, #666);">RESTART</button>
+</div>
+
+<!-- Game Over Screen -->
+<div id="screen-over" class="screen-overlay hidden">
+  <h1 style="color: #ff3344;">WASTED</h1>
+  <h2 id="over-reason">You were busted or knocked out!</h2>
+  <button class="btn" id="btn-retry">TRY AGAIN</button>
+</div>
+
+<!-- Victory Screen -->
+<div id="screen-victory" class="screen-overlay hidden">
+  <h1 style="color: #55ff55;">MISSION ACCOMPLISHED</h1>
+  <h2>You conquered Sunburst City and became a legend!</h2>
+  <button class="btn" id="btn-play-again">PLAY AGAIN</button>
+</div>
+
 <p id="status" role="status" aria-live="polite"></p>
 <script type="module" src="./src/main.js"></script>
 </body>
