@@ -1,4 +1,20 @@
-// Keyboard and Mouse input handler for walking, driving, and shooting.
+// Keyboard + mouse input, built around a binding table: each gameplay action
+// maps to one or more physical codes, and the loop reads the `keys` object
+// for held state plus consumeInputs() for edge-triggered presses (jump,
+// enter/exit, pause, map fire exactly once per key press).
+const BINDINGS = {
+  forward: ['KeyW', 'ArrowUp'],
+  backward: ['KeyS', 'ArrowDown'],
+  left: ['KeyA', 'ArrowLeft'],
+  right: ['KeyD', 'ArrowRight'],
+  sprint: ['ShiftLeft', 'ShiftRight'],
+  jump: ['Space'],
+  shoot: ['Mouse0'],
+  interact: ['KeyE', 'KeyF'],
+  pause: ['KeyP', 'Escape'],
+  map: ['KeyM'],
+};
+
 export const keys = {
   forward: false,
   backward: false,
@@ -7,116 +23,99 @@ export const keys = {
   sprint: false,
   jump: false,
   shoot: false,
-  interact: false, // E or F to enter/exit car
+  interact: false,
   pause: false,
   map: false,
 };
 
-let mouseX = 0;
-let mouseY = 0;
-let mouseDeltaX = 0;
-let mouseDeltaY = 0;
-let isMouseDown = false;
+const heldCodes = new Set();
+const edgeCodes = new Set();
+let dragX = 0;
+let dragY = 0;
+let dragging = false;
+let lastPointer = { x: 0, y: 0 };
+
+function actionFor(code) {
+  for (const entry of Object.entries(BINDINGS)) {
+    if (entry[1].includes(code)) return entry[0];
+  }
+  return null;
+}
+
+function refreshHeld() {
+  for (const [action, codes] of Object.entries(BINDINGS)) {
+    keys[action] = codes.some((code) => heldCodes.has(code));
+  }
+}
 
 export function initInput(canvas) {
-  window.addEventListener('keydown', (e) => {
-    updateKey(e.code, true);
-    if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-      e.preventDefault();
+  window.addEventListener('keydown', (event) => {
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
+      event.preventDefault();
     }
+    if (!heldCodes.has(event.code)) edgeCodes.add(event.code);
+    heldCodes.add(event.code);
+    refreshHeld();
   });
 
-  window.addEventListener('keyup', (e) => {
-    updateKey(e.code, false);
+  window.addEventListener('keyup', (event) => {
+    heldCodes.delete(event.code);
+    refreshHeld();
   });
 
-  canvas.addEventListener('mousedown', (e) => {
-    isMouseDown = true;
-    mouseX = e.clientX;
-    mouseY = e.clientY;
+  canvas.addEventListener('mousedown', (event) => {
+    dragging = true;
     keys.shoot = true;
+    // A click is an edge too: record it so a fast click can never fall
+    // between two frames at low frame rates.
+    edgeCodes.add('Mouse0');
+    lastPointer = { x: event.clientX, y: event.clientY };
   });
 
   window.addEventListener('mouseup', () => {
-    isMouseDown = false;
+    dragging = false;
     keys.shoot = false;
   });
 
-  canvas.addEventListener('mousemove', (e) => {
-    if (isMouseDown) {
-      mouseDeltaX += e.clientX - mouseX;
-      mouseDeltaY += e.clientY - mouseY;
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-    }
+  canvas.addEventListener('mousemove', (event) => {
+    if (!dragging) return;
+    dragX += event.clientX - lastPointer.x;
+    dragY += event.clientY - lastPointer.y;
+    lastPointer = { x: event.clientX, y: event.clientY };
   });
 
-  // Touch support for mobile/tablet or pointer clicks
   canvas.addEventListener('touchstart', () => {
     keys.shoot = true;
-  });
+    edgeCodes.add('Mouse0');
+  }, { passive: true });
   canvas.addEventListener('touchend', () => {
     keys.shoot = false;
   });
 }
 
-function updateKey(code, isDown) {
-  switch (code) {
-    case 'KeyW':
-    case 'ArrowUp':
-      keys.forward = isDown;
-      break;
-    case 'KeyS':
-    case 'ArrowDown':
-      keys.backward = isDown;
-      break;
-    case 'KeyA':
-    case 'ArrowLeft':
-      keys.left = isDown;
-      break;
-    case 'KeyD':
-    case 'ArrowRight':
-      keys.right = isDown;
-      break;
-    case 'ShiftLeft':
-    case 'ShiftRight':
-      keys.sprint = isDown;
-      break;
-    case 'Space':
-      if (isDown && !keys.jump) keys.jumpOnce = true;
-      keys.jump = isDown;
-      break;
-    case 'KeyE':
-    case 'KeyF':
-      if (isDown && !keys.interact) keys.interactPressed = true;
-      keys.interact = isDown;
-      break;
-    case 'KeyP':
-    case 'Escape':
-      if (isDown && !keys.pause) keys.pausePressed = true;
-      keys.pause = isDown;
-      break;
-    case 'KeyM':
-      if (isDown && !keys.map) keys.mapPressed = true;
-      keys.map = isDown;
-      break;
-  }
+function edge(action) {
+  return BINDINGS[action].some((code) => edgeCodes.has(code));
 }
 
+// Returns the presses that happened since the last call, plus how far the
+// mouse was dragged (camera orbit), then clears both for the next frame.
 export function consumeInputs() {
-  const jump = keys.jumpOnce;
-  const interact = keys.interactPressed;
-  const pause = keys.pausePressed;
-  const map = keys.mapPressed;
-  keys.jumpOnce = false;
-  keys.interactPressed = false;
-  keys.pausePressed = false;
-  keys.mapPressed = false;
-  
-  const dx = mouseDeltaX;
-  const dy = mouseDeltaY;
-  mouseDeltaX = 0;
-  mouseDeltaY = 0;
+  const out = {
+    jump: edge('jump'),
+    interact: edge('interact'),
+    pause: edge('pause'),
+    map: edge('map'),
+    shoot: edge('shoot'),
+    lookX: dragX,
+    lookY: dragY,
+  };
+  edgeCodes.clear();
+  dragX = 0;
+  dragY = 0;
+  return out;
+}
 
-  return { jump, interact, pause, map, mouseDeltaX: dx, mouseDeltaY: dy };
+// Kept for callers that probe bindings: which action does this code trigger?
+export function boundAction(code) {
+  return actionFor(code);
 }

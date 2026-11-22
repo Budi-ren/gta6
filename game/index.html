@@ -6,32 +6,44 @@
 <link rel="icon" href="favicon.ico">
 <title>Sunburst City: Vice Horizon</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #050508; font-family: system-ui, -apple-system, sans-serif; color: #fff; user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #150a2e; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: #fff; user-select: none; }
   #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  #hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; }
-  .hud-top { display: flex; justify-content: space-between; align-items: flex-start; }
-  .hud-group { background: rgba(0,0,0,0.6); padding: 10px 16px; border-radius: 8px; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); pointer-events: auto; }
-  .bar-container { width: 150px; height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; overflow: hidden; margin-top: 4px; }
-  .bar-fill { height: 100%; background: #ff3344; width: 100%; transition: width 0.2s; }
-  .bar-fill.armor { background: #3388ff; }
-  .money { font-size: 24px; font-weight: bold; color: #55ff55; text-shadow: 0 0 10px rgba(85,255,85,0.5); }
-  .wanted { color: #ffcc00; font-size: 20px; letter-spacing: 2px; }
-  .mission-box { background: rgba(0,0,0,0.7); border-left: 4px solid #ff7700; padding: 12px 18px; border-radius: 0 8px 8px 0; max-width: 350px; pointer-events: auto; }
-  .mission-title { font-weight: bold; color: #ff9933; margin-bottom: 4px; font-size: 16px; }
-  .mission-desc { font-size: 14px; color: #ddd; }
-  #minimap-container { width: 160px; height: 160px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255,255,255,0.3); background: rgba(20,25,35,0.8); position: relative; pointer-events: auto; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+  #hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 18px; box-sizing: border-box; }
+  .hud-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+  .panel { background: rgba(12, 8, 28, 0.72); padding: 10px 16px; border-radius: 12px; border: 1px solid rgba(255, 170, 60, 0.25); box-shadow: 0 4px 18px rgba(0,0,0,0.45); pointer-events: auto; }
+  .money { font-size: 26px; font-weight: 800; color: #5cff7a; text-shadow: 0 0 12px rgba(92,255,122,0.45); }
+  .label { font-size: 11px; letter-spacing: 2px; color: #ffb86b; margin-top: 7px; }
+  .meter { width: 160px; height: 11px; background: rgba(255,255,255,0.18); border-radius: 6px; overflow: hidden; margin-top: 3px; }
+  .meter > div { height: 100%; width: 100%; transition: width 0.18s; }
+  #hud-health { background: #33dd55; }
+  #hud-stamina { background: #33ccff; }
+  #hud-heat { background: #ffcc00; }
+  .wanted { color: #ffd23a; font-size: 21px; letter-spacing: 3px; margin-top: 2px; }
+  .mission-box { background: rgba(12, 8, 28, 0.78); border-left: 5px solid #ff7a1a; padding: 12px 18px; border-radius: 0 12px 12px 0; max-width: 360px; pointer-events: auto; box-shadow: 0 4px 18px rgba(0,0,0,0.45); }
+  .mission-title { font-weight: 800; color: #ff9e45; margin-bottom: 4px; font-size: 16px; }
+  .mission-desc { font-size: 14px; color: #e8e2f5; line-height: 1.45; }
+  #hud-timer { display: none; margin-top: 8px; font-size: 19px; font-weight: 800; color: #fff; }
+  #minimap-container { width: 164px; height: 164px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 190, 90, 0.55); background: rgba(17, 24, 39, 0.85); position: relative; pointer-events: auto; box-shadow: 0 0 24px rgba(0,0,0,0.7); flex: none; }
   #minimap { width: 100%; height: 100%; display: block; }
-  
-  /* Menus and Screens */
-  .screen-overlay { position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(15,10,30,0.92) 0%, rgba(5,2,10,0.96) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; pointer-events: auto; text-align: center; padding: 20px; }
+  #hud-toast { position: absolute; top: 96px; left: 50%; transform: translateX(-50%); background: rgba(12, 8, 28, 0.85); border: 1px solid rgba(255, 210, 58, 0.5); color: #ffe9a8; font-weight: 700; font-size: 17px; padding: 10px 22px; border-radius: 24px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+  .hud-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; }
+  .chip { font-size: 16px; font-weight: 700; }
+  #hud-car { color: #7ee7ff; }
+  #hud-speedometer { display: none; font-size: 19px; font-weight: 800; color: #ffe14d; }
+
+  .screen-overlay { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, rgba(64, 20, 90, 0.94) 0%, rgba(8, 3, 18, 0.97) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; pointer-events: auto; text-align: center; padding: 20px; }
   .screen-overlay.hidden { display: none !important; }
-  h1 { font-size: 56px; margin: 0 0 10px 0; background: linear-gradient(45deg, #ff3366, #ff9933, #ffff33); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 10px 30px rgba(255,51,102,0.4); }
-  h2 { font-size: 24px; color: #aaa; margin: 0 0 30px 0; font-weight: normal; }
-  .btn { background: linear-gradient(135deg, #ff3366, #ff6633); color: white; border: none; padding: 14px 36px; font-size: 20px; font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 6px 20px rgba(255,51,102,0.4); transition: transform 0.1s, box-shadow 0.1s; margin: 10px; }
-  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255,51,102,0.6); }
+  .title-main { font-size: 62px; line-height: 0.95; margin: 0; font-weight: 900; letter-spacing: 2px; background: linear-gradient(100deg, #ff2e63, #ff9f1c 55%, #ffe14d); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 8px 26px rgba(255, 46, 99, 0.45)); }
+  .title-sub { font-size: 26px; letter-spacing: 12px; color: #c9b8ff; margin: 8px 0 26px 0; font-weight: 300; }
+  .tagline { color: #d8cdf5; font-size: 16px; max-width: 560px; line-height: 1.6; margin-bottom: 8px; }
+  .feature-list { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 620px; margin: 14px 0 6px 0; }
+  .feature-list span { background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 16px; padding: 6px 12px; font-size: 13px; color: #efe9ff; }
+  .btn { background: linear-gradient(135deg, #ff2e63, #ff7a1a); color: white; border: none; padding: 15px 42px; font-size: 21px; font-weight: 800; border-radius: 32px; cursor: pointer; box-shadow: 0 8px 26px rgba(255, 46, 99, 0.45); transition: transform 0.12s, box-shadow 0.12s; margin: 12px; letter-spacing: 1px; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(255, 46, 99, 0.6); }
   .btn:active { transform: translateY(1px); }
-  .controls-hint { margin-top: 30px; background: rgba(255,255,255,0.05); padding: 15px 25px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); font-size: 14px; color: #ccc; max-width: 500px; line-height: 1.6; }
-  
+  .btn.ghost { background: linear-gradient(135deg, #3d3d52, #55556e); box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
+  .controls-hint { margin-top: 26px; background: rgba(255,255,255,0.05); padding: 16px 26px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); font-size: 14px; color: #cfc8e8; max-width: 560px; line-height: 1.75; text-align: left; }
+  .controls-hint b { color: #ffd23a; }
   #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 </style>
 <script src="./vendor/three.min.js"></script>
@@ -39,59 +51,73 @@
 <body>
 <canvas id="game"></canvas>
 <div id="hud">
-  <div class="hud-top">
-    <div class="hud-group">
+  <div class="hud-row">
+    <div class="panel">
       <div class="money" id="hud-money">$500</div>
-      <div style="margin-top:8px;">HEALTH</div>
-      <div class="bar-container"><div class="bar-fill" id="hud-health"></div></div>
-      <div style="margin-top:6px;">WANTED</div>
+      <div class="label">HEALTH</div>
+      <div class="meter"><div id="hud-health"></div></div>
+      <div class="label">STAMINA</div>
+      <div class="meter"><div id="hud-stamina"></div></div>
+      <div class="label">WANTED</div>
       <div class="wanted" id="hud-wanted">☆☆☆☆☆</div>
+      <div class="meter"><div id="hud-heat"></div></div>
     </div>
     <div class="mission-box" id="hud-mission">
-      <div class="mission-title" id="hud-mission-title">MISSION: SUNBURST INTRO</div>
-      <div class="mission-desc" id="hud-mission-desc">Explore the sun-soaked city, steal a car, and head to the downtown club.</div>
+      <div class="mission-title" id="hud-mission-title">MISSION 1: SUNBURST INTRO</div>
+      <div class="mission-desc" id="hud-mission-desc">Steal any car, then drive to the downtown club at (100, 100).</div>
+      <div id="hud-timer">TIME 75s</div>
     </div>
     <div id="minimap-container">
       <canvas id="minimap" width="160" height="160"></canvas>
     </div>
   </div>
-  <div style="display:flex; justify-content: space-between; align-items: flex-end;">
-    <div class="hud-group" id="hud-weapon" style="font-size: 16px; font-weight: bold;">WEAPON: PUNCH / PISTOL</div>
-    <div class="hud-group" id="hud-speedometer" style="font-size: 18px; font-weight: bold; display:none;">SPEED: 0 MPH</div>
+  <div id="hud-toast"></div>
+  <div class="hud-bottom">
+    <div class="panel chip" id="hud-weapon">WEAPON: PISTOL</div>
+    <div class="panel chip" id="hud-car" style="display:none;">SEDAN</div>
+    <div class="panel" id="hud-speedometer">SPEED: 0 MPH</div>
   </div>
 </div>
 
 <!-- Title Screen -->
 <div id="screen-title" class="screen-overlay">
-  <h1>SUNBURST CITY</h1>
-  <h2>VICE HORIZON</h2>
+  <h1 class="title-main">SUNBURST CITY</h1>
+  <div class="title-sub">VICE HORIZON</div>
+  <p class="tagline">A rebuilt open-world crime game: steal cars, outrun roadblocks, deliver
+  against the clock, and escape with the heat still on your tail.</p>
   <button class="btn" id="btn-start">PLAY GAME</button>
+  <div class="feature-list">
+    <span>5 car types</span><span>Police roadblocks</span><span>Timed deliveries</span>
+    <span>Escape missions</span><span>Sprint stamina</span><span>Near-miss bonuses</span>
+    <span>Health regen</span><span>Wanted decay</span>
+  </div>
   <div class="controls-hint">
-    <strong>CONTROLS:</strong><br>
-    <strong>WASD / Arrows:</strong> Move / Drive | <strong>Shift:</strong> Sprint<br>
-    <strong>Space:</strong> Jump / Shoot | <strong>E / F:</strong> Enter / Exit Vehicle<br>
-    <strong>Click / Drag:</strong> Look Around | <strong>P:</strong> Pause | <strong>M:</strong> Map
+    <b>WASD / Arrows:</b> Move &amp; drive &nbsp;·&nbsp; <b>Shift:</b> Sprint (stamina)<br>
+    <b>Space:</b> Jump &nbsp;·&nbsp; <b>Click:</b> Shoot (raises wanted) &nbsp;·&nbsp; <b>Drag:</b> Look around<br>
+    <b>E / F:</b> Enter / exit car &nbsp;·&nbsp; <b>P / Esc:</b> Pause &nbsp;·&nbsp; <b>M:</b> Map<br>
+    Hide from cruisers to cool down. Near-miss a car at speed: +$25.
   </div>
 </div>
 
 <!-- Pause Screen -->
 <div id="screen-paused" class="screen-overlay hidden">
-  <h1>GAME PAUSED</h1>
+  <h1 class="title-main" style="font-size:44px;">PAUSED</h1>
+  <p class="tagline">Take a breath. The heat will wait — probably.</p>
   <button class="btn" id="btn-resume">RESUME</button>
-  <button class="btn" id="btn-restart" style="background: linear-gradient(135deg, #444, #666);">RESTART</button>
+  <button class="btn ghost" id="btn-restart">RESTART RUN</button>
 </div>
 
 <!-- Game Over Screen -->
 <div id="screen-over" class="screen-overlay hidden">
-  <h1 style="color: #ff3344;">WASTED</h1>
-  <h2 id="over-reason">You were busted or knocked out!</h2>
+  <h1 class="title-main" style="font-size:56px;">WASTED</h1>
+  <h2 id="over-reason" style="color:#d8cdf5; font-weight:normal;">The heat got you. Sunburst City moves on without you.</h2>
   <button class="btn" id="btn-retry">TRY AGAIN</button>
 </div>
 
 <!-- Victory Screen -->
 <div id="screen-victory" class="screen-overlay hidden">
-  <h1 style="color: #55ff55;">MISSION ACCOMPLISHED</h1>
-  <h2>You conquered Sunburst City and became a legend!</h2>
+  <h1 class="title-main" style="font-size:52px;">LEGEND OF THE CITY</h1>
+  <h2 style="color:#d8cdf5; font-weight:normal;">Every mission done. Sunburst City is yours.</h2>
   <button class="btn" id="btn-play-again">PLAY AGAIN</button>
 </div>
 
